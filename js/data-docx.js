@@ -284,8 +284,28 @@
         var out = walk(blocks);
         return { blocks: out, fields: fields, title: title };
       }
+      /* kiểm tra khối có hoàn toàn trống không */
+      function isBlockEmpty(b) {
+        if (!b) return true;
+        if (b.p) {
+          if (!b.p.runs || !b.p.runs.length) return true;
+          for (var i = 0; i < b.p.runs.length; i++) {
+            var r = b.p.runs[i];
+            if (r.f || r.cb) return false;
+            if (r.s && String(r.s).replace(/\s+/g, '').length > 0) return false;
+          }
+          return true;
+        }
+        return false;
+      }
+
       /* hiển thị bản in từ khối Word */
       function docxRender(blocks, v) {
+        var clean = (blocks || []).slice();
+        // Cắt bỏ triệt để mọi đoạn trống vô nghĩa ở cuối mẫu văn bản (loại bỏ hoàn toàn trang trắng thừa khi in)
+        while (clean.length && isBlockEmpty(clean[clean.length - 1])) {
+          clean.pop();
+        }
         function runsHtml(runs) {
           return runs.map(function (r) {
             if (r.f) { var val = v[r.f]; return (val !== undefined && String(val).trim() !== '') ? ' <span class="filled">' + esc(val) + '</span> ' : '<span class="blank" style="min-width:' + Math.max(24, (r.w || 10) * 4) + 'px"></span>'; }
@@ -300,11 +320,15 @@
         }
         function blk(list) {
           return list.map(function (b) {
-            if (b.p) { var h = runsHtml(b.p.runs); return '<div class="wp"' + (b.p.al ? ' style="text-align:' + esc(b.p.al) + '"' : '') + '>' + (h || '&nbsp;') + '</div>'; }
+            if (b.p) {
+              var empty = isBlockEmpty(b);
+              var h = runsHtml(b.p.runs);
+              return '<div class="wp' + (empty ? ' empty' : '') + '"' + (b.p.al ? ' style="text-align:' + esc(b.p.al) + '"' : '') + '>' + (h || '&nbsp;') + '</div>';
+            }
             return '<table class="wtb"><tbody>' + b.tb.map(function (row) { return '<tr>' + row.map(function (cell) { return '<td>' + blk(cell) + '</td>'; }).join('') + '</tr>'; }).join('') + '</tbody></table>';
           }).join('');
         }
-        return blk(blocks).replace(/<\/span> ([,.;:)])/g, '</span>$1');
+        return blk(clean).replace(/<\/span> ([,.;:)])/g, '</span>$1');
       }
 
       /* ================= Hồ sơ người khai dùng chung =================
