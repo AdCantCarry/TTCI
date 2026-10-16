@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Hệ thống Tờ khai Điện tử - Trung tâm Cung ứng Dịch vụ công phường Đông Hưng Thuận</title>
+  <link rel="icon" type="image/png" href="./logo.png">
+  <link rel="stylesheet" href="./css/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&family=Source+Serif+4:opsz,wght@8..60,600;8..60,700&family=Noto+Serif:ital,wght@0,400;0,600;0,700;1,400;1,600&display=swap"
+    rel="stylesheet">
+
+</head>
+<body>
+  <canvas id="heroInteractiveCanvas"></canvas>
+  <div class="wrap">
+
+    <div class="topbar">
+      <div class="brand">
+        <div class="mark">TK</div>
+        <div class="name">
+          <b>Trung tâm Cung ứng Dịch vụ công phường Đông Hưng Thuận</b>
+          <span id="officeLabel">Ủy ban nhân dân Phường Đông Hưng Thuận</span>
+        </div>
+      </div>
+      <div class="topbtns">
+        <button class="iconbtn" id="settingsBtn" title="Cài đặt cơ quan tiếp nhận" aria-label="Cài đặt">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <circle cx="12" cy="12" r="3" />
+            <path
+              d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="steps" id="stepsBar"></div>
+
+    <!-- SCREEN 1: chọn loại tờ khai -->
+    <section class="screen" id="screen-select">
+      <div class="sel">
+        <button class="sel-gear" id="settingsBtn2" type="button" title="Cài đặt cơ quan tiếp nhận" aria-label="Cài đặt">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9">
+            <circle cx="12" cy="12" r="3" />
+            <path
+              d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.820-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.650 1.650 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+          </svg>
+        </button>
+
+        <div class="hero">
+          <div class="hero-brand">
+            <div class="logo-tile has-logo" id="brandLogo">
+              <img src="./logo.png" alt="Logo Đông Hưng Thuận">
+            </div>
+          </div>
+
+          <div class="hero-header">
+            <div class="hero-sub">Trung tâm Cung ứng Dịch vụ công</div>
+            <h1 class="hero-title">Phường <span>Đông Hưng Thuận</span></h1>
+            <p class="hero-desc">Hệ thống Tờ khai Điện tử & Hướng dẫn Thủ tục Hành chính Công</p>
+          </div>
+
+          <div class="search">
+            <span class="sicon"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                stroke-width="2.4" stroke-linecap="round">
+                <circle cx="10.5" cy="10.5" r="6.5" />
+                <path d="M20 20l-4.6-4.6" />
+              </svg></span>
+            <input type="text" id="searchInput"
+              placeholder="Tìm loại giấy tờ… (VD: khai sinh, kết hôn, xác nhận tình trạng hôn nhân)" autocomplete="off">
+            <button type="button" class="searchbtn" id="searchGoBtn">Tìm kiếm
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"
+                stroke-linecap="round" stroke-linejoin="round">
+                <path d="M4 12h15M13 6l6 6-6 6" />
+              </svg>
+            </button>
+          </div>
+
+          <div class="quick-tags">
+            <span class="quick-tags-label">Gợi ý nhanh:</span>
+            <button type="button" class="qtag" onclick="quickFilter('khai sinh')">Khai sinh</button>
+            <button type="button" class="qtag" onclick="quickFilter('kết hôn')">Kết hôn</button>
+            <button type="button" class="qtag" onclick="quickFilter('khai tử')">Khai tử</button>
+            <button type="button" class="qtag" onclick="quickFilter('tình trạng hôn nhân')">Tình trạng hôn nhân</button>
+            <button type="button" class="qtag" onclick="quickFilter('đất đai')">Đất đai</button>
+            <button type="button" class="qtag" onclick="quickFilter('hộ kinh doanh')">Hộ kinh doanh</button>
+            <button type="button" class="qtag" onclick="quickFilter('hỏa táng')">Hỏa táng</button>
+          </div>
+        </div>
+
+        <div class="cgrid" id="quickGrid"></div>
+        <div class="cat-hint" id="catHint"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="9.5" />
+            <path d="M12 11v6M12 7.5v.5" stroke-linecap="round" />
+          </svg>Chọn một nhóm thủ tục để xem danh sách chi tiết</div>
+        <div class="gpanels" id="cardGroups"></div>
+        <div class="no-results" id="noResults" hidden>Không tìm thấy loại giấy tờ phù hợp. Thử từ khóa khác nhé.</div>
+
+        <!-- THÔNG TIN LIÊN HỆ & TÀI KHOẢN NỘP PHÍ CHÍNH THỨC -->
+        <div class="official-footer-card">
+          <div class="ofc-header">
+            <div class="ofc-header-title">
+              <span class="ofc-icon">🏛️</span>
+              <b>Thông tin liên hệ chính thức</b>
+            </div>
+            <span class="ofc-header-sub">UBND Phường Đông Hưng Thuận - TP. Hồ Chí Minh</span>
+          </div>
+
+          <div class="ofc-grid">
+            <!-- 1. Điện thoại liên hệ -->
+            <div class="ofc-box">
+              <div class="ofc-box-icon phone">📞</div>
+              <div>
+                <div class="ofc-box-label">Điện thoại liên hệ & Hỗ trợ</div>
+                <div style="margin-top:2px;">
+                  <a href="tel:0965250877"
+                    style="font-weight:700; color:#1D5FD8; text-decoration:none; font-size:14.5px;">096.5250.877 (Di
+                    động)</a>
+                </div>
+                <div style="color:#556987; font-size:13px; margin-top:1px;">
+                  <a href="tel:02866867477" style="color:#1D5FD8; text-decoration:none; font-weight:600;">028.6686.7477
+                    (Điện thoại bàn)</a>
+                </div>
+              </div>
+            </div>
+
+            <!-- 2. Trụ sở & Hòm thư -->
+            <div class="ofc-box">
+              <div class="ofc-box-icon address">📍</div>
+              <div>
+                <div class="ofc-box-label">Trụ sở làm việc & Hòm thư</div>
+                <div style="font-weight:700; color:#1B2A4A; line-height:1.35; margin-top:2px;">116 Phan Văn Hớn, P. Đông
+                  Hưng Thuận, TP. Hồ Chí Minh</div>
+                <div style="margin-top:2px;">
+                  <a href="mailto:ttdvcphuongdonghungthuan@gmail.com"
+                    style="color:#1D5FD8; text-decoration:none; font-size:12.5px; font-weight:500;">✉️
+                    ttdvcphuongdonghungthuan@gmail.com</a>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Fanpage Facebook Link Row -->
+          <div class="ofc-subbar">
+            <div class="ofc-fb-link">
+              <span class="ofc-fb-icon">f</span>
+              <span style="color:#556987; font-weight:600;">Fanpage Facebook chính thức:</span>
+              <a href="https://www.facebook.com/p/Trung-t%C3%A2m-Cung-%E1%BB%A9ng-D%E1%BB%8Bch-v%E1%BB%A5-c%C3%B4ng-ph%C6%B0%E1%BB%9Dng-%C4%90%C3%B4ng-H%C6%B0ng-Thu%E1%BA%ADn-61552269022534/"
+                target="_blank" rel="noopener noreferrer">
+                Trung tâm Cung ứng Dịch vụ công phường Đông Hưng Thuận
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                  <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14L21 3" />
+                </svg>
+              </a>
+            </div>
+          </div>
+
+          <!-- 3 GIÁ TRỊ CỐT LÕI (NHANH CHÓNG - AN TOÀN - THUẬN TIỆN) -->
+          <div class="ofc-values">
+            <div class="ofc-val-item">
+              <span class="vi">⚡</span>
+              <div>
+                <b>Nhanh chóng</b>
+                <span>Tiết kiệm thời gian</span>
+              </div>
+            </div>
+            <div class="ofc-val-item">
+              <span class="vi">🛡️</span>
+              <div>
+                <b>An toàn</b>
+                <span>Bảo mật thông tin</span>
+              </div>
+            </div>
+            <div class="ofc-val-item">
+              <span class="vi">🌟</span>
+              <div>
+                <b>Thuận tiện</b>
+                <span>Mọi lúc, mọi nơi</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- BẢN QUYỀN -->
+        <div class="site-copyright">
+          © 2026 Bản quyền thuộc về <b>Trung tâm Cung ứng Dịch vụ công phường Đông Hưng Thuận</b>.
+        </div>
+      </div>
+      <div id="selEnd"></div>
+    </section>
+
+    <!-- SCREEN 2: nhập liệu -->
+    <section class="screen" id="screen-form">
+      <button class="backlink" data-back-to="select">&larr; Chọn lại loại giấy tờ</button>
+      <div class="panel">
+        <div class="panel-head">
+          <div>
+            <h2 id="formTitle"></h2>
+            <div class="meta" id="formMeta"></div>
+          </div>
+        </div>
+        <div class="voice-hint">🎙️ Bấm biểu tượng micro cạnh ô nhập để đọc thay vì gõ chữ — cần có mạng và cho phép
+          quyền micro.</div>
+        <div class="profile-bar" id="profileBar" hidden></div>
+        <form id="dataForm"></form>
+        <div class="actionbar">
+          <span class="counter" id="fieldCounter"></span>
+          <button class="btn primary" id="toPreviewBtn" type="button">Xem trước tờ khai &rarr;</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- SCREEN 3: xem trước & ký -->
+    <section class="screen" id="screen-preview">
+      <button class="backlink" data-back-to="form">&larr; Quay lại chỉnh sửa</button>
+      <div class="preview-toolbar">
+        <div>
+          <h2 style="margin:0;font-weight:800;font-size:19px;" id="previewTitle"></h2>
+          <div class="meta" style="font-size:12.5px;color:var(--muted);">Mời người dân xem lại toàn bộ nội dung trước
+            khi in.</div>
+        </div>
+      </div>
+
+      <div class="print-hint">🖊️ Sau khi in, mời người dân ký tên trực tiếp bằng bút vào các vị trí "(Ký, ghi rõ họ,
+        chữ đệm, tên)" trên bản giấy — đó là bước hoàn tất thủ tục.</div>
+
+      <div class="doc-shell">
+        <div class="doc" id="docOutput"></div>
+      </div>
+
+      <div class="donebar">
+        <button class="btn primary" id="newFormBtn" type="button">+ Bắt đầu tờ khai mới (cho người tiếp theo)</button>
+        <button class="btn primary" id="printBtn" type="button">In tờ khai</button>
+      </div>
+    </section>
+
+    <!-- SCREEN 4: quản trị mẫu (chỉ chạy trên host có api.php) -->
+    <section class="screen" id="screen-admin">
+      <button class="backlink" id="admExit" type="button">&larr; Về trang tờ khai</button>
+      <div id="adminBody"></div>
+    </section>
+
+  </div>
+
+  <!-- settings modal -->
+  <div class="modal-backdrop" id="settingsModal">
+    <div class="modal">
+      <h3>Cài đặt cơ quan tiếp nhận</h3>
+      <p class="hint">Thông tin này sẽ tự động điền vào mục "Kính gửi" và "Làm tại" của mọi tờ khai. Chỉ lưu trên máy
+        này.</p>
+      <div class="field">
+        <label for="setOffice">Tên cơ quan (mục "Kính gửi")</label>
+        <input type="text" id="setOffice" placeholder="Ủy ban nhân dân Phường Đông Hưng Thuận">
+      </div>
+      <div class="field">
+        <label for="setPlace">Địa danh (mục "Làm tại")</label>
+        <input type="text" id="setPlace" placeholder="Phường Đông Hưng Thuận">
+      </div>
+      <div class="modal-actions">
+        <button class="btn" id="openAdminBtn" type="button" style="margin-right:auto">Quản trị mẫu</button>
+        <button class="btn" id="settingsCancel" type="button">Đóng</button>
+        <button class="btn primary" id="settingsSave" type="button">Lưu</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modular Scripts -->
+  <script src="./js/data-civil.js"></script>
+  <script src="./js/data-docx.js"></script>
+  <script src="./js/canvas.js"></script>
+  <script src="./js/app.js"></script>
+</body>
+</html>
