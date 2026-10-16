@@ -53,52 +53,110 @@
           : 'Trình duyệt chưa cho phép micro. Bấm biểu tượng ổ khóa/“Tệp” cạnh thanh địa chỉ → cho phép Micrô, rồi thử lại.');
       }
       function setupVoiceInputs(scope) {
-        var buttons = scope.querySelectorAll('.micbtn');
-        if (!SpeechRecognitionAPI) {
-          buttons.forEach(function (btn) {
-            btn.disabled = true;
-            btn.title = 'Trình duyệt này chưa hỗ trợ nhập bằng giọng nói (thử Chrome/Edge và cần có mạng)';
-          });
-          return;
-        }
+        var buttons = (scope || document).querySelectorAll('.micbtn');
         buttons.forEach(function (btn) {
+          if (btn._hasMicListener) return;
+          btn._hasMicListener = true;
           btn.addEventListener('click', function () {
             var targetId = btn.getAttribute('data-mic-target');
             var target = document.getElementById(targetId);
             if (!target) return;
 
+            if (!SpeechRecognitionAPI) {
+              micFallback(target);
+              return;
+            }
+
             if (activeMicBtn === btn) { stopActiveRecognition(); return; }
             stopActiveRecognition();
 
-            var rec = new SpeechRecognitionAPI();
+            var rec;
+            try {
+              rec = new SpeechRecognitionAPI();
+            } catch (err) {
+              micFallback(target);
+              return;
+            }
+
             rec.lang = 'vi-VN';
-            rec.interimResults = false;
+            rec.continuous = true;
+            rec.interimResults = true;
             rec.maxAlternatives = 1;
             activeRecognition = rec;
             activeMicBtn = btn;
             btn.classList.add('listening');
+            target.classList.add('mic-active');
+
+            var initialVal = target.value;
+            var silenceTimer = null;
+            function resetSilenceTimer() {
+              clearTimeout(silenceTimer);
+              silenceTimer = setTimeout(function () {
+                stopActiveRecognition();
+              }, 7000);
+            }
+
+            rec.onstart = function () {
+              showToast('🎙️ Đang lắng nghe... Mời bạn nói tiếng Việt.');
+              resetSilenceTimer();
+            };
 
             rec.onresult = function (ev) {
-              var transcript = ev.results[0][0].transcript.trim();
-              if (transcript) {
-                var sep = target.value && !/[\s.,;:]$/.test(target.value) ? ' ' : '';
-                target.value = (target.value + sep + transcript).trim();
+              resetSilenceTimer();
+              var final = '';
+              var interim = '';
+              for (var i = 0; i < ev.results.length; ++i) {
+                var res = ev.results[i];
+                if (!res || !res[0]) continue;
+                var text = res[0].transcript || '';
+                if (res.isFinal) {
+                  final += (final ? ' ' : '') + text.trim();
+                } else {
+                  interim += (interim ? ' ' : '') + text.trim();
+                }
+              }
+              var spoken = (final + (final && interim ? ' ' : '') + interim).trim();
+              if (spoken) {
+                var sep = initialVal && !/[\s.,;:!\?]$/.test(initialVal) ? ' ' : '';
+                target.value = (initialVal ? (initialVal + sep) : '') + spoken;
                 target.dispatchEvent(new Event('input', { bubbles: true }));
+                if (targetId === 'searchInput' && typeof applySearch === 'function') {
+                  applySearch();
+                }
               }
             };
+
             rec.onerror = function (ev) {
-              if (ev.error === 'not-allowed' || ev.error === 'service-not-allowed' || ev.error === 'audio-capture') {
+              console.warn('SpeechRecognition error:', ev.error);
+              clearTimeout(silenceTimer);
+              if (ev.error === 'not-allowed' || ev.error === 'service-not-allowed') {
                 micFallback(target);
+              } else if (ev.error === 'audio-capture') {
+                showToast('Không tìm thấy thiết bị micro. Hãy cắm hoặc bật micro của bạn.');
               } else if (ev.error === 'network') {
-                showToast('Nhập bằng giọng nói cần có kết nối mạng. Có thể dùng nút micro trên bàn phím điện thoại.');
+                showToast('Tính năng giọng nói cần Internet/HTTPS. Bạn có thể dùng nút 🎙️ trên bàn phím nhé.');
                 try { target.focus(); } catch (e) { }
+              } else if (ev.error === 'no-speech') {
+                showToast('Chưa nghe rõ giọng nói. Bạn bấm lại micro và nói to, rõ hơn nhé.');
               }
             };
+
             rec.onend = function () {
+              clearTimeout(silenceTimer);
               btn.classList.remove('listening');
+              target.classList.remove('mic-active');
               if (activeMicBtn === btn) { activeRecognition = null; activeMicBtn = null; }
             };
-            try { rec.start(); } catch (e) { btn.classList.remove('listening'); }
+
+            try {
+              rec.start();
+            } catch (e) {
+              clearTimeout(silenceTimer);
+              btn.classList.remove('listening');
+              target.classList.remove('mic-active');
+              console.error('Cannot start SpeechRecognition:', e);
+              micFallback(target);
+            }
           });
         });
       }
@@ -1023,6 +1081,7 @@
       setOpenGroup(-1);
       showScreen('select');
       routeHash();
+      setupVoiceInputs(document);
       setTimeout(function () { document.getElementById('quickGrid').classList.add('no-intro'); document.getElementById('cardGroups').classList.add('no-intro'); }, 1500);
 
 
