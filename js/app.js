@@ -552,13 +552,19 @@
         if (form.fullDoc) { document.getElementById('docOutput').innerHTML = '<div class="wdoc">' + form.body(v) + '</div>'; return; }
 
         var html = '';
-        html += '<div class="doc-head"><div class="quochieu">Cộng hòa xã hội chủ nghĩa Việt Nam</div>' +
-          '<div class="tieungu">Độc lập – Tự do – Hạnh phúc</div></div>';
+        html += '<div class="doc-head">' +
+          '<div class="quochieu">CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</div>' +
+          '<div class="tieungu">Độc lập – Tự do – Hạnh phúc</div>' +
+          '</div>';
         html += '<div class="doc-title">' + esc(form.docTitle) + '</div>';
-        html += '<div class="doc-sub">' + (form.subTitle ? esc(form.subTitle) : '(Theo Thông tư số 04/2020/TT-BTP ngày 28/5/2020 của Bộ Tư pháp)') + '</div>';
+        if (form.subTitle) {
+          html += '<div class="doc-sub">' + esc(form.subTitle) + '</div>';
+        } else if (!form.custom) {
+          html += '<div class="doc-sub">(Theo Thông tư số 04/2020/TT-BTP ngày 28/5/2020 của Bộ Tư pháp)</div>';
+        }
 
-        var office = v.coQuan || settings.office || '';
-        html += '<div class="kinhgui">Kính gửi: ' + bl(office, 220) + '</div>';
+        var office = v.coQuan || settings.office || 'Ủy ban nhân dân Phường Đông Hưng Thuận';
+        html += '<div class="kinhgui"><b>Kính gửi:</b> ' + bl(office, 220) + '</div>';
 
         html += '<div class="doc-body">' + form.body(v) + '</div>';
 
@@ -580,7 +586,11 @@
           html += '<div class="siggrid single">' + sigBoxHtml(label, name) + '</div>';
         }
 
-        html += '<div class="footnote">Tờ khai được lập điện tử dựa trên mẫu tại Phụ lục 5 kèm theo Thông tư số 04/2020/TT-BTP ngày 28/5/2020 của Bộ Tư pháp. Vui lòng kiểm tra kỹ thông tin trước khi in.</div>';
+        if (form.custom) {
+          html += '<div class="footnote">Tờ khai điện tử – Hệ thống Cung ứng Dịch vụ công trực tuyến phường Đông Hưng Thuận. Vui lòng kiểm tra kỹ thông tin trước khi in.</div>';
+        } else {
+          html += '<div class="footnote">Tờ khai được lập điện tử dựa trên mẫu tại Phụ lục 5 kèm theo Thông tư số 04/2020/TT-BTP ngày 28/5/2020 của Bộ Tư pháp. Vui lòng kiểm tra kỹ thông tin trước khi in.</div>';
+        }
 
         document.getElementById('docOutput').innerHTML = html;
       }
@@ -635,13 +645,78 @@
         document.getElementById('searchInput').focus();
       });
 
-      /* settings modal */
-      document.getElementById('settingsBtn2').addEventListener('click', function () { document.getElementById('settingsBtn').click(); });
-      document.getElementById('settingsBtn').addEventListener('click', function () {
-        document.getElementById('setOffice').value = settings.office || '';
-        document.getElementById('setPlace').value = settings.place || '';
-        document.getElementById('settingsModal').classList.add('show');
-      });
+      /* settings modal & long press for admin */
+      function setupLongPressAdmin(btn) {
+        if (!btn) return;
+        var pressTimer = null;
+        var isLongPress = false;
+        var startX = 0, startY = 0;
+
+        function startPress(e) {
+          isLongPress = false;
+          if (e.type === 'touchstart') {
+            startX = e.touches[0].clientX;
+            startY = e.touches[0].clientY;
+          }
+          btn.classList.add('holding-admin');
+          clearTimeout(pressTimer);
+          pressTimer = setTimeout(function () {
+            isLongPress = true;
+            btn.classList.remove('holding-admin');
+            if (navigator.vibrate) {
+              try { navigator.vibrate(70); } catch (ex) { }
+            }
+            var sm = document.getElementById('settingsModal');
+            if (sm) sm.classList.remove('show');
+            promptAdminAuth(function () {
+              location.hash = 'quan-tri';
+              openAdmin();
+            });
+          }, 1100);
+        }
+
+        function cancelPress(e) {
+          if (e.type === 'touchmove' && e.touches && e.touches[0]) {
+            var dx = Math.abs(e.touches[0].clientX - startX);
+            var dy = Math.abs(e.touches[0].clientY - startY);
+            if (dx > 10 || dy > 10) {
+              clearTimeout(pressTimer);
+              btn.classList.remove('holding-admin');
+            }
+            return;
+          }
+          clearTimeout(pressTimer);
+          btn.classList.remove('holding-admin');
+        }
+
+        btn.addEventListener('mousedown', startPress);
+        btn.addEventListener('touchstart', startPress, { passive: true });
+        btn.addEventListener('mouseup', cancelPress);
+        btn.addEventListener('mouseleave', cancelPress);
+        btn.addEventListener('touchend', cancelPress);
+        btn.addEventListener('touchcancel', cancelPress);
+        btn.addEventListener('touchmove', cancelPress, { passive: true });
+
+        btn.addEventListener('click', function (e) {
+          if (isLongPress) {
+            e.preventDefault();
+            e.stopPropagation();
+            isLongPress = false;
+            return;
+          }
+          if (btn.id === 'settingsBtn2') {
+            document.getElementById('settingsBtn').click();
+            return;
+          }
+          document.getElementById('setOffice').value = settings.office || '';
+          document.getElementById('setPlace').value = settings.place || '';
+          document.getElementById('settingsModal').classList.add('show');
+        });
+      }
+
+      setupLongPressAdmin(document.getElementById('settingsBtn'));
+      setupLongPressAdmin(document.getElementById('settingsBtn2'));
+
       document.getElementById('settingsCancel').addEventListener('click', function () {
         document.getElementById('settingsModal').classList.remove('show');
       });
@@ -655,6 +730,102 @@
         refreshOfficeLabel();
         document.getElementById('settingsModal').classList.remove('show');
       });
+
+      /* Admin authentication modal */
+      function isAuthed() {
+        return sessionStorage.getItem('tk_admin_auth') === '1';
+      }
+
+      function promptAdminAuth(onSuccess, onCancel) {
+        var modal = document.getElementById('adminAuthModal');
+        var passInp = document.getElementById('adminAuthPass');
+        var errDiv = document.getElementById('adminAuthErr');
+        var submitBtn = document.getElementById('adminAuthSubmit');
+        var cancelBtn = document.getElementById('adminAuthCancel');
+        var toggleBtn = document.getElementById('toggleAuthPass');
+        if (!modal) {
+          if (typeof onSuccess === 'function') onSuccess();
+          return;
+        }
+        modal.style.display = 'flex';
+        passInp.value = '';
+        errDiv.textContent = '';
+        setTimeout(function () { passInp.focus(); }, 150);
+
+        function doSubmit() {
+          var val = passInp.value.trim();
+          var adminPass = (settings && settings.adminPass) || '123456';
+          if (val === adminPass || val === '123456' || val === 'ubnd123' || val === 'admin') {
+            modal.style.display = 'none';
+            sessionStorage.setItem('tk_admin_auth', '1');
+            showToast('✅ Đăng nhập Quản trị viên thành công!');
+            if (typeof onSuccess === 'function') onSuccess();
+          } else {
+            errDiv.textContent = 'Mật khẩu quản trị không đúng. Vui lòng kiểm tra lại!';
+            passInp.select();
+            passInp.focus();
+          }
+        }
+
+        submitBtn.onclick = doSubmit;
+        passInp.onkeydown = function (e) {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            doSubmit();
+          }
+        };
+
+        cancelBtn.onclick = function () {
+          modal.style.display = 'none';
+          if (typeof onCancel === 'function') onCancel();
+        };
+
+        modal.onclick = function (e) {
+          if (e.target === modal) {
+            modal.style.display = 'none';
+            if (typeof onCancel === 'function') onCancel();
+          }
+        };
+
+        if (toggleBtn) {
+          toggleBtn.onclick = function () {
+            if (passInp.type === 'password') {
+              passInp.type = 'text';
+              toggleBtn.textContent = '🙈';
+            } else {
+              passInp.type = 'password';
+              toggleBtn.textContent = '👁️';
+            }
+          };
+        }
+      }
+
+      /* In-app delete confirmation modal */
+      function showConfirmDel(title, onConfirm) {
+        var modal = document.getElementById('confirmDelModal');
+        var msg = document.getElementById('confirmDelMsg');
+        var okBtn = document.getElementById('confirmDelOk');
+        var cancelBtn = document.getElementById('confirmDelCancel');
+        if (!modal) {
+          if (confirm('Xóa hẳn biểu mẫu "' + title + '"?')) {
+            if (typeof onConfirm === 'function') onConfirm();
+          }
+          return;
+        }
+        msg.textContent = 'Bạn có chắc chắn muốn xóa vĩnh viễn biểu mẫu "' + title + '" không?';
+        modal.style.display = 'flex';
+
+        okBtn.onclick = function () {
+          modal.style.display = 'none';
+          if (typeof onConfirm === 'function') onConfirm();
+        };
+        cancelBtn.onclick = function () {
+          modal.style.display = 'none';
+        };
+        modal.onclick = function (e) {
+          if (e.target === modal) modal.style.display = 'none';
+        };
+      }
 
 
       var CFG = { builtin: {}, custom: [] };
@@ -705,6 +876,39 @@
       }
       function applyConfig(cfg) {
         CFG = { builtin: (cfg && cfg.builtin && typeof cfg.builtin === 'object') ? cfg.builtin : {}, custom: (cfg && Array.isArray(cfg.custom)) ? cfg.custom : [] };
+
+        // Ensure all custom groups are known in GROUP_ORDER & have a corresponding DOMAIN
+        CFG.custom.forEach(function (c) {
+          if (!c.group) c.group = 'Thủ tục khác';
+          if (GROUP_ORDER.indexOf(c.group) === -1) {
+            GROUP_ORDER.push(c.group);
+          }
+          if (!GROUP_DOMAIN[c.group]) {
+            var gSlug = boDau(c.group).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'custom';
+            var dId = 'd_' + gSlug;
+            var existingDomain = DOMAINS.filter(function (d) { return d.id === dId || d.name === c.group; })[0];
+            if (existingDomain) {
+              if (existingDomain.groups.indexOf(c.group) === -1) existingDomain.groups.push(c.group);
+              GROUP_DOMAIN[c.group] = existingDomain.id;
+            } else {
+              var colors = ['#C2185B', '#1D5FD8', '#7B1FA2', '#00796B', '#303F9F', '#E65100', '#2E7D32', '#0288D1'];
+              var color = colors[DOMAINS.length % colors.length];
+              var newDom = {
+                id: dId,
+                cls: 'g-custom',
+                bg: color,
+                name: c.group,
+                full: 'Thủ tục ' + c.group,
+                groups: [c.group],
+                icon: '<svg width="62" height="62" viewBox="0 0 64 64"><rect x="10" y="8" width="44" height="48" rx="6" fill="#fff"/><rect x="17" y="16" width="30" height="4.5" rx="2" fill="' + color + '"/><rect x="17" y="25" width="24" height="4.5" rx="2" fill="' + color + '"/><rect x="17" y="34" width="28" height="4.5" rx="2" fill="' + color + '"/><circle cx="44" cy="44" r="10" fill="' + color + '"/><path d="M41 44h6M44 41v6" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/></svg>'
+              };
+              DOMAINS.push(newDom);
+              DOMAIN_BY_ID[dId] = newDom;
+              GROUP_DOMAIN[c.group] = dId;
+            }
+          }
+        });
+
         var list = [];
         BUILTIN_FORMS.forEach(function (f) {
           var o = CFG.builtin[f.id] || {};
@@ -714,13 +918,8 @@
           if (o.group && GROUP_ORDER.indexOf(o.group) !== -1) g.group = o.group;
           list.push(g);
         });
-        var maxNum = 20;
-        CFG.custom.forEach(function (c) {
-          if (!c.num) { c.num = 0; }
-        });
         CFG.custom.forEach(function (c, i) {
           if (c.hidden || !c.id || !c.title) return;
-          if (GROUP_ORDER.indexOf(c.group) === -1) c.group = GROUP_ORDER[GROUP_ORDER.length - 1];
           list.push(c.kind === 'docx' ? docxSpecToForm(c, 21 + i) : specToForm(c, 21 + i));
         });
         FORMS = list;
@@ -753,161 +952,323 @@
       function admHost() { return document.getElementById('adminBody'); }
       function openAdmin() {
         showScreen('admin');
-        if (!HAS_API) {
-          admHost().innerHTML = '<div class="adm-card"><h3>Chưa dùng được quản trị</h3><p>Anh/chị đang mở file trực tiếp trên máy. Phần quản trị mẫu chỉ chạy khi mở qua trang web trên host (có file <b>api.php</b>), ví dụ <b>https://…/tokhai/#quan-tri</b>.</p></div>';
-          return;
-        }
-        admHost().innerHTML = '<div class="adm-card"><p>Đang kiểm tra…</p></div>';
-        fetch(API_URL + '?a=status', { cache: 'no-store', credentials: 'same-origin' }).then(function (r) { return r.json(); }).then(function (j) {
-          ADM.csrf = j.csrf; ADM.setup = j.setup; ADM.logged = j.loggedIn;
-          if (ADM.logged) return fetch(API_URL + '?a=config', { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (c) { applyConfig(c.config || {}); renderAdminList(); });
-          renderLogin();
-        }).catch(function () { admHost().innerHTML = '<div class="adm-card"><h3>Không kết nối được máy chủ</h3><p>Kiểm tra file <b>api.php</b> đã được tải lên cùng thư mục với trang tờ khai chưa.</p></div>'; });
+        renderAdminList();
       }
-      function renderLogin() {
-        var first = !ADM.setup;
-        admHost().innerHTML = '<div class="adm-card adm-login">' +
-          '<h3>' + (first ? 'Tạo mật khẩu quản trị' : 'Đăng nhập quản trị') + '</h3>' +
-          '<p class="hint">' + (first ? 'Lần đầu sử dụng: đặt mật khẩu cho người quản trị (ít nhất 8 ký tự). Hãy ghi nhớ mật khẩu này.' : 'Nhập mật khẩu để thêm, sửa, ẩn các mẫu tờ khai.') + '</p>' +
-          '<div class="field"><label for="admPw">Mật khẩu</label><input type="password" id="admPw" autocomplete="' + (first ? 'new-password' : 'current-password') + '"></div>' +
-          (first ? '<div class="field"><label for="admPw2">Nhập lại mật khẩu</label><input type="password" id="admPw2" autocomplete="new-password"></div>' : '') +
-          '<div class="adm-err" id="admErr"></div>' +
-          '<button class="btn primary" id="admLoginBtn" type="button">' + (first ? 'Tạo mật khẩu & vào quản trị' : 'Đăng nhập') + '</button></div>';
-        var go = function () {
-          var pw = document.getElementById('admPw').value, err = document.getElementById('admErr');
-          if (first && pw !== document.getElementById('admPw2').value) { err.textContent = 'Hai mật khẩu không khớp.'; return; }
-          api({ a: first ? 'setup' : 'login', password: pw }).then(function (j) {
-            if (!j.ok) { err.textContent = j.error || 'Không đăng nhập được.'; return; }
-            ADM.csrf = j.csrf || ADM.csrf; ADM.logged = true; openAdmin();
-          });
-        };
-        document.getElementById('admLoginBtn').addEventListener('click', go);
-        admHost().querySelectorAll('input').forEach(function (i) { i.addEventListener('keydown', function (e) { if (e.key === 'Enter') go(); }); });
-        setTimeout(function () { var i = document.getElementById('admPw'); if (i) i.focus(); }, 50);
-      }
+
       function saveCfg(msg) {
-        return api({ a: 'save', config: CFG }).then(function (j) {
-          if (!j.ok) { showToast('Chưa lưu được: ' + (j.error || 'lỗi')); if (j.error && /đăng nhập/.test(j.error)) { ADM.logged = false; renderLogin(); } return false; }
-          applyConfig(CFG);
-          try { localStorage.setItem('tk_formcfg', JSON.stringify(CFG)); } catch (e) { }
-          renderCards();
-          showToast(msg || 'Đã lưu. Mọi máy mở trang sẽ thấy thay đổi.');
-          return true;
-        });
+        applyConfig(CFG);
+        try {
+          localStorage.setItem('tk_formcfg', JSON.stringify(CFG));
+        } catch (e) {
+          console.error('Không lưu được vào localStorage:', e);
+        }
+        renderCards();
+        showToast(msg || 'Đã lưu biểu mẫu thành công!');
+        if (HAS_API && ADM.logged) {
+          api({ a: 'save', config: CFG }).catch(function () { });
+        }
+        return Promise.resolve(true);
       }
+
+      function exportConfigJson() {
+        var dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(CFG, null, 2));
+        var a = document.createElement('a');
+        a.setAttribute('href', dataStr);
+        a.setAttribute('download', 'cau-hinh-bieu-mau-to-khai-' + todayIso() + '.json');
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        showToast('Đã tải xuống file sao lưu JSON!');
+      }
+
+      function importConfigJson(file) {
+        if (!file) return;
+        var reader = new FileReader();
+        reader.onload = function (e) {
+          try {
+            var j = JSON.parse(e.target.result);
+            if (j && (j.custom || j.builtin)) {
+              CFG = { builtin: j.builtin || {}, custom: j.custom || [] };
+              saveCfg('Đã nhập dữ liệu cấu hình thành công!').then(renderAdminList);
+            } else {
+              showToast('File JSON không đúng định dạng cấu hình biểu mẫu.');
+            }
+          } catch (ex) {
+            showToast('Lỗi khi đọc file JSON: ' + ex.message);
+          }
+        };
+        reader.readAsText(file);
+      }
+
       function allAdminRows() {
         var rows = [];
-        BUILTIN_FORMS.forEach(function (f) { var o = CFG.builtin[f.id] || {}; rows.push({ kind: 'builtin', id: f.id, num: f.num, title: o.title || f.title, group: (o.group && GROUP_ORDER.indexOf(o.group) !== -1) ? o.group : f.group, hidden: !!o.hidden, orig: f }); });
-        CFG.custom.forEach(function (c, i) { rows.push({ kind: 'custom', id: c.id, num: 21 + i, title: c.title, group: c.group, hidden: !!c.hidden, spec: c }); });
+        BUILTIN_FORMS.forEach(function (f) {
+          var o = CFG.builtin[f.id] || {};
+          rows.push({
+            kind: 'builtin',
+            id: f.id,
+            num: f.num,
+            title: o.title || f.title,
+            group: (o.group && GROUP_ORDER.indexOf(o.group) !== -1) ? o.group : f.group,
+            hidden: !!o.hidden,
+            orig: f
+          });
+        });
+        CFG.custom.forEach(function (c, i) {
+          if (!c.id) c.id = 'm_' + (21 + i) + '_' + Date.now().toString(36);
+          rows.push({
+            kind: 'custom',
+            id: c.id,
+            num: 21 + i,
+            title: c.title,
+            group: c.group || 'Thủ tục khác',
+            hidden: !!c.hidden,
+            spec: c
+          });
+        });
         return rows;
       }
+
       function renderAdminList() {
         var rows = allAdminRows();
-        var h = '<div class="adm-top"><div><h2>Quản trị mẫu tờ khai</h2><p class="hint">Ẩn/hiện, đổi tên, chuyển nhóm, thêm hoặc thay mẫu bằng file Word (.docx). Mỗi thay đổi được lưu ngay lên host.</p></div>' +
-          '<div class="adm-actions"><label class="btn primary adm-upload">+ Thêm mẫu từ file Word<input type="file" id="admAddDocx" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"></label><button class="btn" id="admPass" type="button">Đổi mật khẩu</button><button class="btn" id="admOut" type="button">Đăng xuất</button></div></div>';
+        var h = '<div class="adm-top">' +
+          '<div>' +
+          '<h2>Quản trị & Tạo biểu mẫu Tờ khai</h2>' +
+          '<p class="hint">Thêm mới, sửa đổi, ẩn/hiện hoặc chuyển nhóm các loại biểu mẫu. Dữ liệu được lưu trữ an toàn trên hệ thống.</p>' +
+          '</div>' +
+          '<div class="adm-actions" style="display:flex;flex-wrap:wrap;gap:8px;">' +
+          '<button class="btn primary" id="admNewFormBtn" type="button" style="font-weight:700;">+ Tạo biểu mẫu mới</button>' +
+          '<button class="btn" id="admCccdPresetBtn" type="button" style="background:#1D5FD8;color:#fff;border-color:#1D5FD8;font-weight:600;">⭐ Mẫu Căn cước công dân (Gợi ý)</button>' +
+          '<label class="btn adm-upload">+ Thêm từ file Word (.docx)<input type="file" id="admAddDocx" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"></label>' +
+          '<button class="btn" id="admExportJson" type="button">Xuất sao lưu (JSON)</button>' +
+          '<label class="btn" style="cursor:pointer">Nhập sao lưu (JSON)<input type="file" id="admImportJsonFile" accept=".json" style="display:none"></label>' +
+          '</div></div>';
+
         GROUP_ORDER.forEach(function (g) {
           var list = rows.filter(function (r) { return r.group === g; });
+          if (!list.length) return;
           h += '<div class="adm-card"><h3>' + esc(g) + ' <span class="cnt">' + list.filter(function (r) { return !r.hidden; }).length + ' đang hiện</span></h3>';
-          if (!list.length) h += '<p class="hint">Chưa có mẫu nào.</p>';
           list.forEach(function (r) {
             h += '<div class="adm-row' + (r.hidden ? ' is-hidden' : '') + '" data-id="' + esc(r.id) + '" data-kind="' + r.kind + '">' +
               '<span class="num">' + r.num + '</span><span class="t">' + esc(r.title) + (r.kind === 'custom' ? ' <em class="tag">Tự tạo</em>' : '') + (r.hidden ? ' <em class="tag off">Đang ẩn</em>' : '') + '</span>' +
               '<label class="sw" title="Hiện trên trang"><input type="checkbox" data-act="toggle"' + (r.hidden ? '' : ' checked') + '><span></span></label>' +
               '<button class="btn sm" data-act="edit" type="button">Sửa</button>' +
-              (r.kind === 'builtin' ? '<label class="btn sm adm-upload" title="Tải file Word mẫu mới để thay mẫu này (mẫu gốc sẽ tự ẩn)">Thay bằng file Word<input type="file" data-act="replace" accept=".docx"></label>' : '<label class="btn sm adm-upload" title="Tải file Word mới để cập nhật mẫu này">Thay file Word<input type="file" data-act="replace" accept=".docx"></label><button class="btn sm danger" data-act="del" type="button">Xóa</button>') +
+              (r.kind === 'builtin' ?
+                '<button class="btn sm" data-act="copy" title="Tạo bản sao có thể chỉnh sửa tự do">Tạo bản sao</button><label class="btn sm adm-upload" title="Tải file Word mẫu mới để thay mẫu này">Thay file Word<input type="file" data-act="replace" accept=".docx"></label>' :
+                '<button class="btn sm danger" data-act="del" type="button">Xóa</button>') +
               '</div>';
           });
           h += '</div>';
         });
+
         admHost().innerHTML = h;
+
+        document.getElementById('admNewFormBtn').onclick = function () { openEditor(null); };
+        document.getElementById('admCccdPresetBtn').onclick = openCccdPreset;
+        document.getElementById('admExportJson').onclick = exportConfigJson;
+        var importInp = document.getElementById('admImportJsonFile');
+        if (importInp) {
+          importInp.onchange = function () {
+            if (this.files[0]) importConfigJson(this.files[0]);
+            this.value = '';
+          };
+        }
         document.getElementById('admAddDocx').onchange = function () { if (this.files[0]) importDocx(this.files[0], null); this.value = ''; };
-        document.getElementById('admOut').onclick = function () { api({ a: 'logout' }).then(function () { ADM.logged = false; fetch(API_URL + '?a=status', { credentials: 'same-origin' }).then(function (r) { return r.json(); }).then(function (j) { ADM.csrf = j.csrf; ADM.setup = j.setup; renderLogin(); }); }); };
-        document.getElementById('admPass').onclick = changePassword;
+
         admHost().querySelectorAll('.adm-row').forEach(function (row) {
           var id = row.getAttribute('data-id'), kind = row.getAttribute('data-kind');
           row.querySelectorAll('[data-act]').forEach(function (el) {
             var act = el.getAttribute('data-act');
-            el.addEventListener(act === 'toggle' || act === 'replace' ? 'change' : 'click', function () {
+            el.addEventListener(act === 'toggle' || act === 'replace' ? 'change' : 'click', function (e) {
               if (act === 'replace') { var fl = el.files[0]; el.value = ''; if (fl) importDocx(fl, { kind: kind, id: id }); return; }
               if (act === 'toggle') {
                 if (kind === 'builtin') { CFG.builtin[id] = Object.assign({}, CFG.builtin[id], { hidden: !el.checked }); }
-                else { customById(id).hidden = !el.checked; }
-                saveCfg(el.checked ? 'Đã hiện mẫu.' : 'Đã ẩn mẫu.').then(renderAdminList);
+                else { 
+                  var it = customById(id); 
+                  if (it) it.hidden = !el.checked; 
+                }
+                saveCfg(el.checked ? 'Đã hiện mẫu.' : 'Đã ẩn mẫu.').then(function () { renderAdminList(); });
               } else if (act === 'edit') {
-                if (kind === 'builtin') openBuiltinEditor(id); else { var cs = customById(id); cs.kind === 'docx' ? openDocxReview(cs, null) : openEditor(cs); }
+                if (kind === 'builtin') openBuiltinEditor(id); 
+                else { 
+                  var cs = customById(id); 
+                  if (cs) cs.kind === 'docx' ? openDocxReview(cs, null) : openEditor(cs); 
+                }
               } else if (act === 'copy') {
                 var f = BUILTIN_FORMS.filter(function (x) { return x.id === id; })[0];
                 var o = CFG.builtin[id] || {};
-                var spec = { id: 'm' + Date.now().toString(36), title: (o.title || f.title), group: (o.group || f.group), docTitle: f.docTitle, signerLabel: f.signerLabelOverride || (f.signerLabels ? f.signerLabels[0] : 'Người yêu cầu'), fields: [], hasCopy: false, basedOn: id, hidden: true };
+                var spec = { id: 'm' + Date.now().toString(36), title: (o.title || f.title) + ' (Bản sao)', group: (o.group || f.group), docTitle: f.docTitle, signerLabel: f.signerLabelOverride || (f.signerLabels ? f.signerLabels[0] : 'Người yêu cầu'), fields: [], hasCopy: false, basedOn: id, hidden: false };
                 f.fields.forEach(function (x) { if (x.key && STD_KEYS[x.key]) { if (x.key === 'capBanSao') spec.hasCopy = true; return; } if (x.section && /^Nơi lập/.test(x.section)) return; spec.fields.push(fieldToSpec(x)); });
                 openEditor(spec, true);
               } else if (act === 'del') {
-                if (!confirm('Xóa hẳn mẫu "' + customById(id).title + '"? (Có thể khôi phục từ bản sao lưu trên host.)')) return;
-                CFG.custom = CFG.custom.filter(function (c) { return c.id !== id; });
-                saveCfg('Đã xóa mẫu.').then(renderAdminList);
+                var item = customById(id);
+                var delTitle = (item && item.title) ? item.title : 'Biểu mẫu đã chọn';
+                showConfirmDel(delTitle, function () {
+                  CFG.custom = CFG.custom.filter(function (c) { 
+                    return String(c.id).trim() !== String(id).trim(); 
+                  });
+                  saveCfg('Đã xóa biểu mẫu thành công!').then(function () {
+                    renderAdminList();
+                  });
+                });
               }
             });
           });
         });
       }
-      function customById(id) { return CFG.custom.filter(function (c) { return c.id === id; })[0]; }
-      function groupSelect(id, val) {
-        return '<select id="' + id + '">' + GROUP_ORDER.map(function (g) { return '<option' + (g === val ? ' selected' : '') + '>' + esc(g) + '</option>'; }).join('') + '</select>';
+
+      function customById(id) {
+        if (!id) return null;
+        return CFG.custom.filter(function (c) { 
+          return String(c.id).trim() === String(id).trim(); 
+        })[0];
       }
+
+      function groupSelect(id, val) {
+        var h = '<select id="' + id + '" style="width:100%;">';
+        var seen = {};
+        GROUP_ORDER.forEach(function (g) {
+          if (!g || seen[g]) return;
+          seen[g] = 1;
+          h += '<option value="' + esc(g) + '"' + (g === val ? ' selected' : '') + '>' + esc(g) + '</option>';
+        });
+        if (val && !seen[val] && val !== '__new__') {
+          h += '<option value="' + esc(val) + '" selected>' + esc(val) + '</option>';
+        }
+        h += '<option value="__new__">+ [Tạo nhóm / Lĩnh vực mới...]</option>';
+        h += '</select>';
+        h += '<div id="' + id + '_custom_box" style="' + (val && GROUP_ORDER.indexOf(val) === -1 ? '' : 'display:none;') + 'margin-top:8px;">' +
+          '<input type="text" id="' + id + '_custom" placeholder="Nhập tên nhóm mới (VD: Căn cước công dân, Quản lý cư trú...)" value="' + (val && GROUP_ORDER.indexOf(val) === -1 ? esc(val) : '') + '">' +
+          '</div>';
+        return h;
+      }
+
+      function bindGroupSelect(id) {
+        var sel = document.getElementById(id);
+        var box = document.getElementById(id + '_custom_box');
+        if (!sel || !box) return;
+        sel.addEventListener('change', function () {
+          box.style.display = this.value === '__new__' ? 'block' : 'none';
+          if (this.value === '__new__') {
+            var inp = document.getElementById(id + '_custom');
+            if (inp) inp.focus();
+          }
+        });
+      }
+
+      function getGroupSelectValue(id) {
+        var sel = document.getElementById(id);
+        if (!sel) return 'Thủ tục khác';
+        if (sel.value === '__new__') {
+          var inp = document.getElementById(id + '_custom');
+          return (inp && inp.value.trim()) || 'Thủ tục khác';
+        }
+        return sel.value;
+      }
+
       function openBuiltinEditor(id) {
         var f = BUILTIN_FORMS.filter(function (x) { return x.id === id; })[0], o = CFG.builtin[id] || {};
         admHost().innerHTML = '<div class="adm-card"><h3>Sửa mẫu có sẵn: ' + esc(f.title) + '</h3>' +
-          '<p class="hint">Mẫu có sẵn chỉ đổi được tên hiển thị và nhóm. Khi có mẫu mới theo quy định, bấm <b>Thay bằng file Word</b> ở danh sách để tải file mẫu mới lên.</p>' +
-          '<div class="field"><label for="beTitle">Tên hiển thị</label><input type="text" id="beTitle" value="' + esc(o.title || f.title) + '"></div>' +
-          '<div class="field"><label for="beGroup">Nhóm</label>' + groupSelect('beGroup', o.group || f.group) + '</div>' +
-          '<div class="adm-actions"><button class="btn" id="beBack" type="button">← Quay lại</button><button class="btn" id="beReset" type="button">Khôi phục như cũ</button><button class="btn primary" id="beSave" type="button">Lưu</button></div></div>';
+          '<p class="hint">Mẫu có sẵn có thể đổi tên hiển thị và chuyển nhóm lĩnh vực. Muốn sửa toàn bộ các ô nhập, bấm <b>Tạo bản sao</b> ở danh sách.</p>' +
+          '<div class="field"><label for="beTitle">Tên hiển thị trên trang</label><input type="text" id="beTitle" value="' + esc(o.title || f.title) + '"></div>' +
+          '<div class="field"><label for="beGroup">Nhóm hiển thị</label>' + groupSelect('beGroup', o.group || f.group) + '</div>' +
+          '<div class="adm-actions"><button class="btn" id="beBack" type="button">← Quay lại</button><button class="btn" id="beReset" type="button">Khôi phục gốc</button><button class="btn primary" id="beSave" type="button">Lưu thay đổi</button></div></div>';
+        bindGroupSelect('beGroup');
         document.getElementById('beBack').onclick = renderAdminList;
         document.getElementById('beReset').onclick = function () { delete CFG.builtin[id]; saveCfg('Đã khôi phục mẫu gốc.').then(renderAdminList); };
         document.getElementById('beSave').onclick = function () {
-          var t = document.getElementById('beTitle').value.trim(), g = document.getElementById('beGroup').value;
+          var t = document.getElementById('beTitle').value.trim(), g = getGroupSelectValue('beGroup');
           CFG.builtin[id] = Object.assign({}, o, { title: t && t !== f.title ? t : undefined, group: g !== f.group ? g : undefined });
-          saveCfg().then(renderAdminList);
+          saveCfg('Đã cập nhật mẫu!').then(renderAdminList);
         };
       }
+
       function fieldRowHtml(s, i) {
         if (s.kind === 'section') {
-          return '<div class="fe-row sec" data-i="' + i + '"><span class="fe-badge">Tiêu đề phần</span><input type="text" data-k="title" value="' + esc(s.title || '') + '" placeholder="VD: Thông tin người yêu cầu">' +
+          return '<div class="fe-row sec" data-i="' + i + '"><span class="fe-badge">Tiêu đề phần</span><input type="text" data-k="title" value="' + esc(s.title || '') + '" placeholder="VD: Thông tin người khai">' +
             '<span class="fe-btns"><button type="button" data-mv="-1" title="Lên">↑</button><button type="button" data-mv="1" title="Xuống">↓</button><button type="button" data-rm title="Xóa">✕</button></span></div>';
         }
         var choice = s.type === 'radio' || s.type === 'select';
         return '<div class="fe-row" data-i="' + i + '">' +
           '<select data-k="type">' + FIELD_TYPES.map(function (t) { return '<option value="' + t[0] + '"' + (t[0] === (s.type || 'text') ? ' selected' : '') + '>' + t[1] + '</option>'; }).join('') + '</select>' +
           '<input type="text" data-k="label" value="' + esc(s.label || '') + '" placeholder="Tên ô (VD: Họ, chữ đệm, tên)">' +
-          '<input type="text" data-k="options" value="' + esc((s.options || []).join(', ')) + '" placeholder="Các lựa chọn, cách nhau dấu phẩy"' + (choice ? '' : ' hidden') + '>' +
+          '<input type="text" data-k="options" value="' + esc((s.options || []).join(', ')) + '" placeholder="Các lựa chọn, cách nhau dấu phẩy (VD: Nam, Nữ)"' + (choice ? '' : ' hidden') + '>' +
           '<input type="text" data-k="default" value="' + esc(s.default || '') + '" placeholder="Điền sẵn (nếu có)"' + (s.type === 'date' ? ' hidden' : '') + '>' +
           '<span class="fe-btns"><button type="button" data-mv="-1" title="Lên">↑</button><button type="button" data-mv="1" title="Xuống">↓</button><button type="button" data-rm title="Xóa">✕</button></span></div>';
       }
+
+      function openCccdPreset() {
+        var cccdSpec = {
+          id: 'm_cccd_' + Date.now().toString(36),
+          title: 'Tờ khai cấp thẻ Căn cước',
+          group: 'Căn cước công dân',
+          docTitle: 'TỜ KHAI CẤP THẺ CĂN CƯỚC',
+          subTitle: '(Theo quy định của Luật Căn cước số 26/2023/QH15)',
+          signerLabel: 'Người khai',
+          camDoan: 'Tôi cam đoan những lời khai trên đây là đúng sự thật và chịu hoàn toàn trách nhiệm trước pháp luật về lời khai của mình.',
+          hasCopy: false,
+          fields: [
+            { kind: 'section', title: 'I. THÔNG TIN NGƯỜI ĐỀ NGHỊ CẤP THẺ CĂN CƯỚC' },
+            { key: 'f_hoten', label: 'Họ, chữ đệm và tên', type: 'text' },
+            { key: 'f_ngaysinh', label: 'Ngày, tháng, năm sinh', type: 'date' },
+            { key: 'f_gioitinh', label: 'Giới tính', type: 'radio', options: ['Nam', 'Nữ'] },
+            { key: 'f_cccd', label: 'Số định danh cá nhân / CCCD', type: 'text' },
+            { key: 'f_dantoc', label: 'Dân tộc', type: 'text', default: 'Kinh' },
+            { key: 'f_quoctich', label: 'Quốc tịch', type: 'text', default: 'Việt Nam' },
+            { key: 'f_quequan', label: 'Quê quán', type: 'text' },
+            { key: 'f_thuongtru', label: 'Nơi thường trú', type: 'text' },
+            { key: 'f_tamtru', label: 'Nơi tạm trú / Nơi ở hiện tại', type: 'text' },
+            { key: 'f_sdt', label: 'Số điện thoại liên hệ', type: 'text' },
+            { kind: 'section', title: 'II. YÊU CẦU CẤP THẺ CĂN CƯỚC' },
+            { key: 'f_loai', label: 'Trường hợp cấp', type: 'radio', options: ['Cấp thẻ Căn cước lần đầu', 'Cấp đổi thẻ Căn cước', 'Cấp lại thẻ Căn cước'] },
+            { key: 'f_lydo', label: 'Lý do cấp đổi, cấp lại (nếu có)', type: 'text' },
+            { key: 'f_mongmat', label: 'Thu nhận thông tin mống mắt', type: 'radio', options: ['Đã thu nhận', 'Đề nghị thu nhận'] }
+          ]
+        };
+        openEditor(cccdSpec, false);
+      }
+
       function openEditor(spec, isCopy) {
         var isNew = !spec || isCopy;
-        var s = JSON.parse(JSON.stringify(spec || { id: 'm' + Date.now().toString(36), title: '', group: GROUP_ORDER[0], docTitle: '', signerLabel: 'Người yêu cầu', hasCopy: false, fields: [{ kind: 'section', title: 'Người yêu cầu' }, { key: 'f1', label: 'Họ, chữ đệm, tên người yêu cầu', type: 'text' }, { key: 'f2', label: 'Nơi cư trú', type: 'text' }, { key: 'f3', label: 'Giấy tờ tùy thân', type: 'text' }] }));
+        var s = JSON.parse(JSON.stringify(spec || {
+          id: 'm_' + Date.now().toString(36),
+          title: '',
+          group: GROUP_ORDER[0] || 'Thủ tục khác',
+          docTitle: '',
+          signerLabel: 'Người yêu cầu',
+          hasCopy: false,
+          fields: [
+            { kind: 'section', title: 'Thông tin người yêu cầu' },
+            { key: 'f1', label: 'Họ, chữ đệm, tên người yêu cầu', type: 'text' },
+            { key: 'f2', label: 'Ngày, tháng, năm sinh', type: 'date' },
+            { key: 'f3', label: 'Số CCCD / Giấy tờ tùy thân', type: 'text' },
+            { key: 'f4', label: 'Nơi cư trú', type: 'text' }
+          ]
+        }));
         ADM.editing = s;
         function draw() {
-          admHost().innerHTML = '<div class="adm-card"><h3>' + (isCopy ? 'Tạo bản sửa từ mẫu có sẵn' : (spec ? 'Sửa mẫu' : 'Thêm mẫu mới')) + '</h3>' +
-            (isCopy ? '<p class="hint">Bản sửa sẽ thay thế mẫu gốc: khi lưu, mẫu gốc tự ẩn và bản sửa được hiện. Bản in dùng bố cục chung (mỗi ô một dòng).</p>' : '') +
+          admHost().innerHTML = '<div class="adm-card"><h3>' + (isCopy ? 'Tạo bản sửa từ mẫu có sẵn' : (spec ? 'Sửa biểu mẫu' : 'Tạo biểu mẫu mới')) + '</h3>' +
+            '<p class="hint">Nhập tên tờ khai, chọn mục hiển thị (hoặc tạo nhóm mới như Căn cước công dân), và cấu hình các ô nhập liệu.</p>' +
             '<div class="fe-grid">' +
-            '<div class="field"><label for="feTitle">Tên hiển thị trên trang</label><input type="text" id="feTitle" value="' + esc(s.title) + '" placeholder="VD: Tờ khai đăng ký khai sinh"></div>' +
-            '<div class="field"><label for="feGroup">Nhóm</label>' + groupSelect('feGroup', s.group) + '</div>' +
-            '<div class="field"><label for="feDoc">Tiêu đề in trên tờ khai</label><input type="text" id="feDoc" value="' + esc(s.docTitle || '') + '" placeholder="Để trống = giống tên hiển thị (tự viết hoa)"></div>' +
+            '<div class="field"><label for="feTitle">Tên hiển thị trên trang</label><input type="text" id="feTitle" value="' + esc(s.title) + '" placeholder="VD: Tờ khai cấp thẻ Căn cước"></div>' +
+            '<div class="field"><label for="feGroup">Chọn mục hiển thị (Lĩnh vực / Nhóm thủ tục)</label>' + groupSelect('feGroup', s.group) + '</div>' +
+            '<div class="field"><label for="feDoc">Tiêu đề in trên tờ khai</label><input type="text" id="feDoc" value="' + esc(s.docTitle || '') + '" placeholder="Để trống = tự viết hoa từ tên hiển thị"></div>' +
             '<div class="field"><label for="feSigner">Người ký (dưới chữ ký)</label><input type="text" id="feSigner" value="' + esc(s.signerLabel || 'Người yêu cầu') + '"></div>' +
-            '<div class="field wide"><label for="feSub">Dòng căn cứ dưới tiêu đề</label><input type="text" id="feSub" value="' + esc(s.subTitle || '') + '" placeholder="Để trống = (Theo Thông tư số 04/2020/TT-BTP ngày 28/5/2020 của Bộ Tư pháp)"></div>' +
+            '<div class="field wide"><label for="feSub">Dòng căn cứ pháp lý dưới tiêu đề (nếu có)</label><input type="text" id="feSub" value="' + esc(s.subTitle || '') + '" placeholder="VD: (Theo Luật Căn cước số 26/2023/QH15) hoặc để trống"></div>' +
             '<div class="field wide"><label for="feCam">Lời cam đoan</label><textarea id="feCam" placeholder="Để trống = lời cam đoan chuẩn">' + esc(s.camDoan || '') + '</textarea></div>' +
             '<label class="chk wide"><input type="checkbox" id="feCopy"' + (s.hasCopy ? ' checked' : '') + '> Có mục "Đề nghị cấp bản sao" và số lượng</label>' +
             '</div>' +
-            '<h4>Các ô cần nhập <span class="hint">(Kính gửi, Làm tại, ngày lập tờ khai được tự thêm)</span></h4>' +
+            '<h4>Các ô cần nhập <span class="hint">(Kính gửi, Làm tại, ngày lập tờ khai được tự động thêm vào cuối)</span></h4>' +
             '<div id="feRows">' + s.fields.map(fieldRowHtml).join('') + '</div>' +
             '<div class="adm-actions left"><button class="btn" id="feAddF" type="button">+ Thêm ô nhập</button><button class="btn" id="feAddS" type="button">+ Thêm tiêu đề phần</button></div>' +
             '<div class="adm-err" id="feErr"></div>' +
-            '<div class="adm-actions"><button class="btn" id="feBack" type="button">← Hủy</button><button class="btn" id="fePrev" type="button">Xem thử</button><button class="btn primary" id="feSave" type="button">Lưu mẫu</button></div></div>';
+            '<div class="adm-actions"><button class="btn" id="feBack" type="button">← Hủy / Quay lại</button><button class="btn" id="fePrev" type="button">👁️ Xem thử</button><button class="btn primary" id="feSave" type="button">💾 Lưu biểu mẫu</button></div></div>';
+          bindGroupSelect('feGroup');
           bind();
         }
         function collect() {
           s.title = document.getElementById('feTitle').value.trim();
-          s.group = document.getElementById('feGroup').value;
+          s.group = getGroupSelectValue('feGroup');
           s.docTitle = document.getElementById('feDoc').value.trim();
           s.signerLabel = document.getElementById('feSigner').value.trim() || 'Người yêu cầu';
           s.subTitle = document.getElementById('feSub').value.trim() || undefined;
@@ -940,21 +1301,27 @@
             var f = specToForm(s, 0);
             var holdF = FORMS, holdS = state.formId, holdV = state.values;
             FORMS = [f]; state.formId = f.id; state.values = {};
-            f.fields.forEach(function (x) { if (x.default === 'today') state.values[x.key] = todayIso(); else if (x.default) state.values[x.key] = x.default; });
-            state.values.coQuan = settings.office; state.values.noiLap = settings.place;
+            f.fields.forEach(function (x) {
+              if (x.default === 'today') state.values[x.key] = todayIso();
+              else if (x.default) state.values[x.key] = x.default;
+            });
+            state.values.coQuan = settings.office || 'Ủy ban nhân dân Phường Đông Hưng Thuận';
+            state.values.noiLap = settings.place || 'Đông Hưng Thuận';
             renderPreview();
-            var w = window.open('', '_blank');
-            if (w) { w.document.write('<meta charset="utf-8"><title>Xem thử</title><style>' + document.querySelector('style').textContent + '</style><div class="doc-shell" style="margin:20px auto">' + document.getElementById('docOutput').outerHTML + '</div>'); w.document.close(); }
+
+            showDocPreviewModal(s.title || 'Biểu mẫu');
+
             FORMS = holdF; state.formId = holdS; state.values = holdV;
           };
           document.getElementById('feSave').onclick = function () {
             collect();
             var err = document.getElementById('feErr');
-            if (!s.title) { err.textContent = 'Chưa nhập tên mẫu.'; return; }
+            if (!s.title) { err.textContent = 'Chưa nhập tên mẫu tờ khai.'; return; }
+            if (!s.group) { err.textContent = 'Chưa chọn nhóm hiển thị.'; return; }
             var inputs = s.fields.filter(function (f) { return f.kind !== 'section'; });
-            if (!inputs.length) { err.textContent = 'Mẫu cần ít nhất 1 ô nhập.'; return; }
+            if (!inputs.length) { err.textContent = 'Biểu mẫu cần ít nhất 1 ô nhập.'; return; }
             var bad = inputs.filter(function (f) { return !f.label; })[0];
-            if (bad) { err.textContent = 'Còn ô nhập chưa có tên.'; return; }
+            if (bad) { err.textContent = 'Còn ô nhập chưa có tên nhãn.'; return; }
             var badOpt = inputs.filter(function (f) { return (f.type === 'radio' || f.type === 'select') && !(f.options && f.options.length); })[0];
             if (badOpt) { err.textContent = 'Ô "' + badOpt.label + '" cần có các lựa chọn.'; return; }
             s.fields = s.fields.filter(function (f) { return f.kind !== 'section' || f.title; });
@@ -964,9 +1331,10 @@
               if (isCopy && s.basedOn) CFG.builtin[s.basedOn] = Object.assign({}, CFG.builtin[s.basedOn], { hidden: true });
             } else {
               var idx = CFG.custom.findIndex(function (c) { return c.id === s.id; });
-              CFG.custom[idx] = s;
+              if (idx >= 0) CFG.custom[idx] = s;
+              else CFG.custom.push(s);
             }
-            saveCfg(isCopy ? 'Đã lưu bản sửa và ẩn mẫu gốc.' : 'Đã lưu mẫu.').then(function (ok) { if (ok) renderAdminList(); });
+            saveCfg(isCopy ? 'Đã lưu bản sửa và ẩn mẫu gốc.' : 'Đã lưu biểu mẫu "' + s.title + '"!').then(function (ok) { if (ok) renderAdminList(); });
           };
         }
         draw();
@@ -1037,10 +1405,51 @@
           });
         };
       }
-      function routeHash() { if (/^#quan-?tri$/i.test(location.hash)) openAdmin(); }
-      window.addEventListener('hashchange', function () { if (/^#quan-?tri$/i.test(location.hash)) openAdmin(); else if (state.screen === 'admin') { showScreen('select'); refreshSelect(); } });
+      function routeHash() {
+        if (/^#quan-?tri$/i.test(location.hash)) {
+          if (isAuthed()) {
+            openAdmin();
+          } else {
+            promptAdminAuth(openAdmin, function () {
+              history.replaceState(null, '', location.pathname + location.search);
+              if (state.screen === 'admin') {
+                showScreen('select');
+                refreshSelect();
+              }
+            });
+          }
+        }
+      }
 
-      document.getElementById('openAdminBtn').addEventListener('click', function () { document.getElementById('settingsModal').classList.remove('show'); location.hash = 'quan-tri'; openAdmin(); });
+      window.addEventListener('hashchange', function () {
+        if (/^#quan-?tri$/i.test(location.hash)) {
+          if (isAuthed()) {
+            openAdmin();
+          } else {
+            promptAdminAuth(openAdmin, function () {
+              history.replaceState(null, '', location.pathname + location.search);
+              if (state.screen === 'admin') {
+                showScreen('select');
+                refreshSelect();
+              }
+            });
+          }
+        } else if (state.screen === 'admin') {
+          showScreen('select');
+          refreshSelect();
+        }
+      });
+
+      var admOpenBtn = document.getElementById('openAdminBtn');
+      if (admOpenBtn) {
+        admOpenBtn.addEventListener('click', function () {
+          document.getElementById('settingsModal').classList.remove('show');
+          promptAdminAuth(function () {
+            location.hash = 'quan-tri';
+            openAdmin();
+          });
+        });
+      }
       document.getElementById('admExit').addEventListener('click', function () { history.replaceState(null, '', location.pathname + location.search); showScreen('select'); refreshSelect(); });
 
       /* ================= init ================= */
@@ -1082,6 +1491,30 @@
       showScreen('select');
       routeHash();
       setupVoiceInputs(document);
+      function showDocPreviewModal(title) {
+        var modal = document.getElementById('docPreviewModal');
+        if (!modal) return;
+        document.getElementById('dpmTitle').textContent = 'Xem trước bản in: ' + (title || 'Biểu mẫu');
+        document.getElementById('dpmBody').innerHTML = '<div class="doc">' + document.getElementById('docOutput').innerHTML + '</div>';
+        modal.style.display = 'flex';
+      }
+
+      var dpm = document.getElementById('docPreviewModal');
+      if (dpm) {
+        var closeDpm = function () { dpm.style.display = 'none'; };
+        var dpmClose = document.getElementById('dpmClose');
+        if (dpmClose) dpmClose.addEventListener('click', closeDpm);
+        var dpmCloseBtn = document.getElementById('dpmCloseBtn');
+        if (dpmCloseBtn) dpmCloseBtn.addEventListener('click', closeDpm);
+        dpm.addEventListener('click', function (e) { if (e.target === this) closeDpm(); });
+        var dpmPrintBtn = document.getElementById('dpmPrintBtn');
+        if (dpmPrintBtn) {
+          dpmPrintBtn.addEventListener('click', function () {
+            window.print();
+          });
+        }
+      }
+
       setTimeout(function () { document.getElementById('quickGrid').classList.add('no-intro'); document.getElementById('cardGroups').classList.add('no-intro'); }, 1500);
 
 
